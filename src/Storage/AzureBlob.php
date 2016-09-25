@@ -51,7 +51,7 @@ class AzureBlob implements StorageInterface
      */
     public function url($styleName)
     {
-        return $this->blobClient->getBaseUrl() . '/' . $this->attachedFile->azure_blob_config['container'] . $this->path($styleName);
+        return $this->blobClient->getBaseUrl() . '/' . $this->attachedFile->azure_blob_config['container'] . '/' . $this->path($styleName);
     }
 
     /**
