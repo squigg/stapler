@@ -24,13 +24,6 @@ class AzureBlob implements StorageInterface
     protected $blobClient;
 
     /**
-     * Boolean flag indicating if this attachment's container currently exists.
-     *
-     * @var array
-     */
-    protected $containerExists = false;
-
-    /**
      * Constructor method.
      *
      * @param Attachment $attachedFile
@@ -40,6 +33,9 @@ class AzureBlob implements StorageInterface
     {
         $this->attachedFile = $attachedFile;
         $this->blobClient = $blobClient;
+
+        // Do this once here, as this is an expensive HTTP request
+        $this->ensureContainerExists($this->attachedFile->azure_blob_config['container']);
     }
 
     /**
@@ -87,7 +83,6 @@ class AzureBlob implements StorageInterface
      */
     public function move($file, $filePath)
     {
-        $this->ensureContainerExists($this->attachedFile->azure_blob_config['container']);
         $this->blobClient->putBlob($this->attachedFile->azure_blob_config['container'], $filePath, $file);
 
         @unlink($file);
@@ -115,26 +110,11 @@ class AzureBlob implements StorageInterface
     /**
      * Ensure that a given Azure container exists.
      *
-     * @param string $bucketName
-     */
-    protected function ensureContainerExists($bucketName)
-    {
-        if (!$this->containerExists) {
-            $this->buildContainer($bucketName);
-        }
-    }
-
-    /**
-     * Attempt to build a bucket (if it doesn't already exist).
-     *
      * @param string $containerName
      */
-    protected function buildContainer($containerName)
+    protected function ensureContainerExists($containerName)
     {
-        if (!$this->blobClient->containerExists($containerName)) {
-            $this->blobClient->createContainer($containerName);
-        }
-
-        $this->containerExists = true;
+        $this->blobClient->createContainerIfNotExists($containerName);
     }
+
 }
