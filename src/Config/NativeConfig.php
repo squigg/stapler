@@ -42,6 +42,15 @@ class NativeConfig implements ConfigInterface
             ],
             'path' => ':attachment/:id/:style/:filename',
         ],
+        'azure_blob' => [
+            'azure_blob_config' => [
+                'url' => '',
+                'name' => '',
+                'key' => '',
+                'container' => 'http',
+            ],
+            'path' => ':attachment/:id/:style/:filename',
+        ],
         'bindings' => [
             'attachment' => '\Codesleeve\Stapler\Attachment',
             'interpolator' => '\Codesleeve\Stapler\Interpolator',

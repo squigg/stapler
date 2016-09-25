@@ -53,6 +53,21 @@ class StorageTest extends PHPUnit_Framework_TestCase
     }
 
     /**
+     * Test that the Storage factory can create an instance of the Azure
+     * Blob storage driver.
+     *
+     * @test
+     */
+    public function it_should_be_able_to_create_an_azure_storeage_instance()
+    {
+        $attachment = $this->buildMockAttachment('azure_blob');
+
+        $storage = Storage::create($attachment);
+
+        $this->assertInstanceOf('Codesleeve\Stapler\Storage\AzureBlob', $storage);
+    }
+
+    /**
      * Test that the Storage factory should create an instance of the filesystem
      * storage driver by default.
      *

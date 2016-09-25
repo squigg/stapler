@@ -2,12 +2,13 @@
 
 namespace Codesleeve\Stapler\Storage;
 
-use Codesleeve\Stapler\Interfaces\Storage as StorageInterface;
-use Aws\S3\S3Client;
+use Beberlei\AzureBlobStorage\BlobClient;
 use Codesleeve\Stapler\Attachment;
+use Codesleeve\Stapler\Interfaces\Storage as StorageInterface;
 
-class S3 implements StorageInterface
+class AzureBlob implements StorageInterface
 {
+
     /**
      * The current attachedFile object being processed.
      *
@@ -16,29 +17,29 @@ class S3 implements StorageInterface
     public $attachedFile;
 
     /**
-     * The AWS S3Client instance.
+     * The Azure Blob Client instance.
      *
-     * @var S3Client
+     * @var BlobClient
      */
-    protected $s3Client;
+    protected $blobClient;
 
     /**
-     * Boolean flag indicating if this attachment's bucket currently exists.
+     * Boolean flag indicating if this attachment's container currently exists.
      *
      * @var array
      */
-    protected $bucketExists = false;
+    protected $containerExists = false;
 
     /**
      * Constructor method.
      *
      * @param Attachment $attachedFile
-     * @param S3Client   $s3Client
+     * @param BlobClient $blobClient
      */
-    public function __construct(Attachment $attachedFile, S3Client $s3Client)
+    public function __construct(Attachment $attachedFile, BlobClient $blobClient)
     {
         $this->attachedFile = $attachedFile;
-        $this->s3Client = $s3Client;
+        $this->blobClient = $blobClient;
     }
 
     /**
@@ -50,7 +51,7 @@ class S3 implements StorageInterface
      */
     public function url($styleName)
     {
-        return $this->s3Client->getObjectUrl($this->attachedFile->s3_object_config['Bucket'], $this->path($styleName), null, ['PathStyle' => true]);
+        return $this->blobClient->getBaseUrl() . '/' . $this->attachedFile->azure_blob_config['container'] . $this->path($styleName);
     }
 
     /**
@@ -62,7 +63,8 @@ class S3 implements StorageInterface
      */
     public function path($styleName)
     {
-        return $this->attachedFile->getInterpolator()->interpolate($this->attachedFile->path, $this->attachedFile, $styleName);
+        return $this->attachedFile->getInterpolator()
+                                  ->interpolate($this->attachedFile->path, $this->attachedFile, $styleName);
     }
 
     /**
@@ -72,8 +74,8 @@ class S3 implements StorageInterface
      */
     public function remove(array $filePaths)
     {
-        if ($filePaths) {
-            $this->s3Client->deleteObjects(['Bucket' => $this->attachedFile->s3_object_config['Bucket'], 'Objects' => $this->getKeys($filePaths)]);
+        foreach ($filePaths as $filePath) {
+            $this->blobClient->deleteBlob($this->attachedFile->azure_blob_config['container'], $filePath);
         }
     }
 
@@ -85,12 +87,8 @@ class S3 implements StorageInterface
      */
     public function move($file, $filePath)
     {
-        $objectConfig = $this->attachedFile->s3_object_config;
-        $fileSpecificConfig = ['Key' => $filePath, 'SourceFile' => $file, 'ContentType' => $this->attachedFile->contentType()];
-        $mergedConfig = array_merge($objectConfig, $fileSpecificConfig);
-
-        $this->ensureBucketExists($mergedConfig['Bucket']);
-        $this->s3Client->putObject($mergedConfig);
+        $this->ensureContainerExists($this->attachedFile->azure_blob_config['container']);
+        $this->blobClient->putBlob($this->attachedFile->azure_blob_config['container'], $filePath, $file);
 
         @unlink($file);
     }
@@ -115,28 +113,28 @@ class S3 implements StorageInterface
     }
 
     /**
-     * Ensure that a given S3 bucket exists.
+     * Ensure that a given Azure container exists.
      *
      * @param string $bucketName
      */
-    protected function ensureBucketExists($bucketName)
+    protected function ensureContainerExists($bucketName)
     {
-        if (!$this->bucketExists) {
-            $this->buildBucket($bucketName);
+        if (!$this->containerExists) {
+            $this->buildContainer($bucketName);
         }
     }
 
     /**
      * Attempt to build a bucket (if it doesn't already exist).
      *
-     * @param string $bucketName
+     * @param string $containerName
      */
-    protected function buildBucket($bucketName)
+    protected function buildContainer($containerName)
     {
-        if (!$this->s3Client->doesBucketExist($bucketName, true)) {
-            $this->s3Client->createBucket(['ACL' => $this->attachedFile->ACL, 'Bucket' => $bucketName, 'LocationConstraint' => $this->attachedFile->region]);
+        if (!$this->blobClient->containerExists($containerName)) {
+            $this->blobClient->createContainer($containerName);
         }
 
-        $this->bucketExists = true;
+        $this->containerExists = true;
     }
 }

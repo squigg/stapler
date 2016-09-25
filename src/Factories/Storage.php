@@ -3,6 +3,7 @@
 namespace Codesleeve\Stapler\Factories;
 
 use Codesleeve\Stapler\Attachment as AttachedFile;
+use Codesleeve\Stapler\Storage\AzureBlob;
 use Codesleeve\Stapler\Storage\Filesystem;
 use Codesleeve\Stapler\Storage\S3;
 use Codesleeve\Stapler\Stapler;
@@ -14,7 +15,7 @@ class Storage
      *
      * @param AttachedFile $attachment
      *
-     * @return \Codesleeve\Stapler\Storage\StorageableInterface
+     * @return \Codesleeve\Stapler\Interfaces\Storage
      */
     public static function create(AttachedFile $attachment)
     {
@@ -24,9 +25,15 @@ class Storage
                 break;
 
             case 's3':
-                $s3Client = Stapler::getS3ClientInstance($attachment);
+                $s3Client = Stapler::getStorageClientInstance($attachment);
 
                 return new S3($attachment, $s3Client);
+                break;
+
+            case 'azure_blob':
+                $azureClient = Stapler::getStorageClientInstance($attachment);
+
+                return new AzureBlob($attachment, $azureClient);
                 break;
 
             default:

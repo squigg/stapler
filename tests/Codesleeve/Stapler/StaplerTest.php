@@ -105,6 +105,7 @@ class StaplerTest extends PHPUnit_Framework_TestCase
     {
         $dummyConfig = new AttachmentConfig('TestAttachment', [
             'styles' => [],
+            'storage' => 's3',
             's3_client_config' => [
                 'key' => '',
                 'secret' => '',
@@ -121,6 +122,35 @@ class StaplerTest extends PHPUnit_Framework_TestCase
 
         $this->assertInstanceOf('Aws\S3\S3Client', $s3Client1);
         $this->assertSame($s3Client1, $s3Client2);
+    }
+
+    /**
+     * Test that the Stapler class can build a single instance of
+     * Beberlei\AzureBlobStorage\BlobClient for each model/attachment combo.
+     *
+     * @test
+     */
+    public function it_should_be_able_to_create_a_singleton_azure_client_instance_for_each_model_attachment_combo()
+    {
+        $dummyConfig = new AttachmentConfig('TestAttachment', [
+            'styles' => [],
+            'storage' => 'azure_blob',
+            'azure_blob' => [
+                'url' => '',
+                'name' => '',
+                'key' => '',
+                'container' => '',
+            ],
+        ]);
+        $mockAttachment = m::mock('Codesleeve\Stapler\Attachment')->makePartial();
+        $mockAttachment->shouldReceive('getInstanceClass')->twice()->andReturn('TestModel');
+        $mockAttachment->setConfig($dummyConfig);
+
+        $azureClient1 = Stapler::getAzureBlobClientInstance($mockAttachment);
+        $azureClient2 = Stapler::getAzureBlobClientInstance($mockAttachment);
+
+        $this->assertInstanceOf('Beberlei\AzureBlobStorage\BlobClient', $azureClient1);
+        $this->assertSame($azureClient1, $azureClient2);
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace Codesleeve\Stapler;
 
+use Beberlei\AzureBlobStorage\BlobClient;
 use Codesleeve\Stapler\Interfaces\Attachment as AttachmentInterface;
 use Codesleeve\Stapler\Interfaces\Config as ConfigInterface;
 use Codesleeve\Stapler\File\Image\Resizer;
@@ -68,15 +69,15 @@ class Stapler
     protected static $imageProcessors = [];
 
     /**
-     * A key value store of S3 clients.
-     * Because S3 clients are model-attachment specific, each
+     * A key value store of storage clients.
+     * Because storage clients are model-attachment specific, each
      * time we create a new one (for a given model/attachment combo)
      * we'll need to cache it here in order to prevent
      * memory leaks.
      *
      * @var array
      */
-    protected static $s3Clients = [];
+    protected static $storageClients = [];
 
     /**
      * Boot up stapler.
@@ -164,9 +165,21 @@ class Stapler
     }
 
     /**
+     * Create a unique key for this storage client and model
+     * This is used for caching the clients
+     *
+     * @param AttachmentInterface $attachedFile
+     *
+     * @return string
+     */
+    protected static function createStorageClientKey(AttachmentInterface $attachedFile) {
+
+
+
+    }
+
+    /**
      * Return an S3Client object for a specific attachment type.
-     * If no instance has been defined yet we'll buld one and then
-     * cache it on the s3Clients property (for the current request only).
      *
      * @param AttachmentInterface $attachedFile
      *
@@ -174,17 +187,44 @@ class Stapler
      */
     public static function getS3ClientInstance(AttachmentInterface $attachedFile)
     {
+        return static::getStorageClientInstance($attachedFile);
+    }
+
+    /**
+     * Return an Azure Blob Client object for a specific attachment type.
+     *
+     * @param AttachmentInterface $attachedFile
+     *
+     * @return BlobClient
+     */
+    public static function getAzureBlobClientInstance(AttachmentInterface $attachedFile)
+    {
+        return static::getStorageClientInstance($attachedFile);
+    }
+
+    /**
+     * Return a StorageClient object for a specific attachment type.
+     * If no instance has been defined yet we'll buld one and then
+     * cache it on the storageClients property (for the current request only).
+     *
+     * @param AttachmentInterface $attachedFile
+     *
+     * @return S3Client|BlobClient
+     */
+    public static function getStorageClientInstance(AttachmentInterface $attachedFile)
+    {
         $modelName = $attachedFile->getInstanceClass();
         $attachmentName = $attachedFile->getConfig()->name;
-        $key = "$modelName.$attachmentName";
+        $storageClient = $attachedFile->getConfig()->storage;
+        $key = "$storageClient.$modelName.$attachmentName";
 
-        if (array_key_exists($key, static::$s3Clients)) {
-            return static::$s3Clients[$key];
+        if (array_key_exists($key, static::$storageClients)) {
+            return static::$storageClients[$key];
         }
 
-        static::$s3Clients[$key] = static::buildS3Client($attachedFile);
+        static::$storageClients[$key] = static::buildStorageClient($attachedFile);
 
-        return static::$s3Clients[$key];
+        return static::$storageClients[$key];
     }
 
     /**
@@ -217,12 +257,24 @@ class Stapler
      * Build an S3Client instance using the information defined in
      * this class's attachedFile object.
      *
-     * @param $attachedFile
-     *
-     * @return S3Client
+     * @param AttachmentInterface $attachedFile
+     * @return S3Client|BlobClient
+     * @throws Exceptions\InvalidAttachmentConfigurationException
      */
-    protected static function buildS3Client(AttachmentInterface $attachedFile)
+    protected static function buildStorageClient(AttachmentInterface $attachedFile)
     {
-        return S3Client::factory($attachedFile->s3_client_config);
+        $storageClient = $attachedFile->getConfig()->storage;
+
+        if ($storageClient == 's3') {
+            return S3Client::factory($attachedFile->s3_client_config);
+        }
+
+        if ($storageClient == 'azure_blob') {
+            $azureConfig = $attachedFile->azure_blob_config;
+            return new BlobClient($azureConfig['url'],$azureConfig['name'],$azureConfig['key']);
+        }
+
+        throw new Exceptions\InvalidAttachmentConfigurationException('Unknown storage client: ' . $storageClient);
+
     }
 }
