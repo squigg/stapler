@@ -14,7 +14,17 @@ class Validator implements ValidatorInterface
      */
     public function validateOptions(array $options)
     {
-        $options['storage'] == 'filesystem' ? $this->validateFilesystemOptions($options) : $this->validateS3Options($options);
+        switch ($options['storage']) {
+            case 'filesystem':
+                $this->validateFilesystemOptions($options);
+                break;
+            case 's3':
+                $this->validateS3Options($options);
+                break;
+            case 'azure_blob':
+                $this->validateAzureBlobOptions($options);
+                break;
+        }
     }
 
     /**
@@ -52,6 +62,33 @@ class Validator implements ValidatorInterface
 
         if (!$options['s3_client_config']['key']) {
             throw new Exceptions\InvalidUrlOptionException('Invalid Path: a key is required for s3 storage.', 1);
+        }
+    }
+
+    /**
+     * Validate the attachment options for an attachment type when the storage
+     * driver is set to 'azure_blob'.
+     *
+     * @throws Exceptions\InvalidUrlOptionException
+     *
+     * @param array $options
+     */
+    protected function validateAzureBlobOptions(array $options)
+    {
+        if (!$options['azure_blob_config']['container']) {
+            throw new Exceptions\InvalidUrlOptionException('Invalid Path: a container is required for Azure storage.', 1);
+        }
+
+        if (!$options['azure_blob_config']['url']) {
+            throw new Exceptions\InvalidUrlOptionException('Invalid Path: a url is required for Azure storage.', 1);
+        }
+
+        if (!$options['azure_blob_config']['name']) {
+            throw new Exceptions\InvalidUrlOptionException('Invalid Path: a name is required for Azure storage.', 1);
+        }
+
+        if (!$options['azure_blob_config']['key']) {
+            throw new Exceptions\InvalidUrlOptionException('Invalid Path: a key is required for Azure storage.', 1);
         }
     }
 }
